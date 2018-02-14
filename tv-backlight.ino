@@ -173,6 +173,7 @@ void mqttMessageReceived(char* topic, byte* payload, unsigned int payloadLength)
     }
     message[payloadLength] = '\0';
 
+    // mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, message);
     if (equal(topic, MQTT_SWITCH_COMMAND_TOPIC)) {
         if (equal(message, "ON")) {
             if (state.mode == MODE_OFF) {
@@ -190,7 +191,7 @@ void mqttMessageReceived(char* topic, byte* payload, unsigned int payloadLength)
 
         byte stage = 0;
         for (uint8_t i = 0; i < payloadLength; i++)  {
-            char character = (char)payload[i];
+            char character = (char)message[i];
             if (stage == 0) {
                 if (character != ',') {
                     r.concat(character);
@@ -241,6 +242,5 @@ void handleSerialTimeout() {
             state.mode = MODE_OFF;
             state.targetColor = RgbColor(0, 0, 0);
             mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, "Switch to MQTT");
-        }
     }
 }
