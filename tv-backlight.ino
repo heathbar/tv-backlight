@@ -4,8 +4,8 @@
 #include "secrets.h"
 
 #define LEDCOUNT   134       // Number of LEDs used for serial
-#define BAUDRATE   460800    // Serial port speed
-#define SERIAL_TIMEOUT_THRESHOLD 16384 // number of loops before we consider serial to be silent
+#define BAUDRATE   230400    // Serial port speed
+#define SERIAL_TIMEOUT_THRESHOLD 1000 // number of loops before we consider serial to be silent
 
 const char prefix[] = {0x41, 0x64, 0x61, 0x00, 0x85, 0xD0};  // prefix, expect this sequence over serial before each frame
 
@@ -38,7 +38,6 @@ struct State {
     byte mode;                      // Current mode: OFF/MQTT/SERIAL
     int serialByteIndex;            // how many serial bytes we've read since the last frame
     int serialTimeoutCounter;       // keep track of how many loops() since we last heard from the serial port
-    bool frameReady;                // this is mostly obsolete
     RgbColor targetColor;           // target (and after the fade, the current) color set by MQTT
     RgbColor prevColor;             // the previous color set by MQTT
     bool isFading;                  // whether or not we are fading between MQTT colors
@@ -60,9 +59,10 @@ void setup() {
     
     state.targetColor = RgbColor(0x11, 0, 0xFF);
     state.isFading = false;
-    state.frameReady = false;
 
     // connect to WiFi
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED) {
         delay(50);
@@ -125,18 +125,10 @@ void loop() {
                     if (state.serialByteIndex == sizeof(prefix) - 1) {
                         state.mode = MODE_SERIAL_DATA;
                         state.serialByteIndex = 0;
-
-                        if (state.frameReady){
-                            state.frameReady = false;
-                        }
                     } else {
                         state.serialByteIndex++;
                     }
                 } else {
-                    if (state.frameReady) {
-                        mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, "frame lost");
-                    }
-                    state.frameReady = false;
                     state.serialByteIndex = 0;
                 }
             } else {
@@ -152,10 +144,9 @@ void loop() {
                 strip.SetPixelColor(state.serialByteIndex++, color);
 
                 if (state.serialByteIndex == LEDCOUNT) {
-                    state.frameReady = true;
+                    strip.Show();
                     state.mode = MODE_SERIAL_PREFIX;
                     state.serialByteIndex = 0;
-                    strip.Show();
                 }
             } else {
                 handleSerialTimeout();
@@ -173,7 +164,7 @@ void mqttMessageReceived(char* topic, byte* payload, unsigned int payloadLength)
     }
     message[payloadLength] = '\0';
 
-    // mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, message);
+    // mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, String(String(topic) + ": " + message).c_str());
     if (equal(topic, MQTT_SWITCH_COMMAND_TOPIC)) {
         if (equal(message, "ON")) {
             if (state.mode == MODE_OFF) {
@@ -238,9 +229,16 @@ RgbColor calculateFade(RgbColor fromColor, RgbColor toColor, float progress) {
 
 void handleSerialTimeout() {
     if (state.serialTimeoutCounter >= SERIAL_TIMEOUT_THRESHOLD) {
+        // Reconnect to MQTT because it likely timed out
+        if (mqtt.connect("ESP8266Client")) {
+            mqtt.subscribe(MQTT_SWITCH_COMMAND_TOPIC);
+            mqtt.subscribe(MQTT_RGB_COMMAND_TOPIC);
+        }
         if (state.mode == MODE_SERIAL_PREFIX || state.mode == MODE_SERIAL_DATA) {
             state.mode = MODE_OFF;
             state.targetColor = RgbColor(0, 0, 0);
             mqtt.publish(MQTT_STATUS_COMMAND_TOPIC, "Switch to MQTT");
+        }
     }
+    delay(1);
 }
