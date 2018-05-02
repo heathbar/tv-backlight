@@ -3,6 +3,10 @@
 #include <NeoPixelBus.h>
 #include "secrets.h"
 
+//
+// LEDs must be connected to pin D4 / GPIO2. This is hard coded in NeoPixelBus and is not configurable
+//
+
 #define LEDCOUNT   134       // Number of LEDs used for serial
 #define BAUDRATE   230400    // Serial port speed
 #define SERIAL_TIMEOUT_THRESHOLD 1000 // number of loops before we consider serial to be silent
