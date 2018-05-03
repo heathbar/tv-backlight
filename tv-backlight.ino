@@ -1,7 +1,12 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <NeoPixelBus.h>
-#include "secrets.h"
+
+// secrets.h should define the following variables
+// #define MY_MQTT_SERVER_IP "192.168.0.123"
+// #define MY_WIFI_SSID "your wifi ssid goes here"
+// #define MY_WIFI_PASS "your wifi password goes here"
+#include "secrets.h" 
 
 //
 // LEDs must be connected to pin D4 / GPIO2. This is hard coded in NeoPixelBus and is not configurable
