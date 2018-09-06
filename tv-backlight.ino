@@ -85,7 +85,7 @@ void setup() {
     mqtt.setServer(MQTT_SERVER_IP, MQTT_SERVER_PORT);
     mqtt.setCallback(mqttMessageReceived);
 
-    if (mqtt.connect("ESP8266Client")) {
+    if (mqtt.connect(MQTT_CLIENT_ID)) {
         mqtt.subscribe(MQTT_SWITCH_COMMAND_TOPIC);
         mqtt.subscribe(MQTT_RGB_COMMAND_TOPIC);
 
